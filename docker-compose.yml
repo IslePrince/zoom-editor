@@ -1,0 +1,34 @@
+name: zoom-editor
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8093:8093"
+    environment:
+      ZE_PORT: "8093"
+      ZE_DATA_DIR: /data
+      ZE_MEDIA_ROOT: /media                      # local paths callers may reference
+      ZE_ENCODER: "${ZE_ENCODER:-auto}"          # auto | nvenc | x264
+      ZE_PUBLIC_URL: "${ZE_PUBLIC_URL:-}"        # base URL used in file links, e.g. http://host:8093
+      ZE_API_TOKEN: "${ZE_API_TOKEN:-}"          # optional bearer token for REST + MCP
+      ZE_WORKERS: "${ZE_WORKERS:-1}"
+      ZE_RETENTION_DAYS: "${ZE_RETENTION_DAYS:-14}"
+    volumes:
+      - ze_data:/data
+      - type: bind
+        source: ${ZE_MEDIA_PATH:-./media}
+        target: /media
+        read_only: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, video]
+    restart: unless-stopped
+
+volumes:
+  ze_data:

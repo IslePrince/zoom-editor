@@ -1,0 +1,28 @@
+[project]
+name = "zoom-editor"
+version = "0.1.0"
+description = "Meeting recording + transcript → clips, trailers and 1:1/9:16/16:9 social videos, as an MCP server and REST API (NVENC when available)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "python-multipart>=0.0.9",
+  "mcp>=1.12,<2",
+  "numpy>=1.24",
+  "pillow>=10",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+zoom-editor = "zoom_editor.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["zoom_editor"]

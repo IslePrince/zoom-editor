@@ -40,7 +40,7 @@ mcp = FastMCP(
         "~30 s trailer or a longform best-of, each optionally as 1:1 / 9:16 / 16:9 social "
         "videos with burned-in captions, waveform and headline. Flow: create_project → "
         "get_transcript (read it and choose the moments yourself) → render_clip / "
-        "render_trailer / render_longform → get_job until status is done → download the "
+        "render_trailer / render_longform (or render_social for a clip you already have) → get_job until status is done → download the "
         "file URLs. Times are seconds or HH:MM:SS.mmm on the source timeline. Renders are "
         "async and can take minutes."))
 
@@ -111,6 +111,19 @@ def render_longform(project_id: str, moments: list[dict], sizes: list[str] | Non
     return _file_urls(store.submit(project_id, "longform", moments,
                                    sizes=social.SIZES.keys() if sizes is None else sizes,
                                    subtitles=subtitles, accent=accent, bg=bg))
+
+
+@mcp.tool()
+def render_social(project_id: str, headline: str = "", sizes: list[str] | None = None,
+                  subtitles: bool = True, caption_start: float = 0.0,
+                  headline_timeline: list[dict] | None = None,
+                  accent: str = "", bg: str = "") -> dict:
+    """Social variants of the WHOLE project video, no cut (for a clip you already have).
+    caption_start: where this video begins on the transcript's timeline (seconds).
+    headline_timeline: [{t0, t1, text}] to cycle the headline instead of one fixed headline."""
+    return _file_urls(store.submit(project_id, "social", sizes=social.SIZES.keys() if sizes is None else sizes,
+                                   subtitles=subtitles, headline=headline, accent=accent, bg=bg,
+                                   caption_start=caption_start, headline_timeline=headline_timeline))
 
 
 @mcp.tool()
@@ -232,7 +245,9 @@ def rest_submit(request: Request, body: dict = Body(...)):
                            sizes=body.get("sizes", list(social.SIZES)),
                            subtitles=bool(body.get("subtitles", True)),
                            headline=body.get("headline", ""), accent=body.get("accent", ""),
-                           bg=body.get("bg", ""), quality=int(body.get("quality", 20)))
+                           bg=body.get("bg", ""), quality=int(body.get("quality", 20)),
+                           caption_start=float(body.get("caption_start", 0) or 0),
+                           headline_timeline=body.get("headline_timeline"))
         return _file_urls(job, _base(request))
     except Exception as e:
         _err(e)

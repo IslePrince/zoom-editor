@@ -154,7 +154,7 @@ def project_cues(pid: str) -> list:
 
 
 # ── Jobs ────────────────────────────────────────────────────────────────
-JOB_TYPES = ("clip", "trailer", "longform")
+JOB_TYPES = ("clip", "trailer", "longform", "social")
 _q: "queue.Queue[str]" = queue.Queue()
 
 
@@ -187,14 +187,27 @@ def list_jobs(project_id: str = "", limit: int = 50) -> list:
     return sorted(jobs, key=lambda j: j.get("created", 0), reverse=True)[:limit]
 
 
-def submit(project_id: str, type: str, moments: list, sizes=("1x1", "9x16", "16x9"),
+def submit(project_id: str, type: str, moments: list | None = None, sizes=("1x1", "9x16", "16x9"),
            subtitles: bool = True, headline: str = "", accent: str = "", bg: str = "",
-           quality: int = 20) -> dict:
+           quality: int = 20, caption_start: float = 0.0,
+           headline_timeline: list | None = None) -> dict:
+    """type 'social' renders sizes of the WHOLE source (an already-cut clip or
+    compilation) with no cut: captions come from the project transcript from
+    `caption_start` seconds, and `headline_timeline` [{t0,t1,text}] can cycle
+    the headline."""
     proj = get_project(project_id)
     if type not in JOB_TYPES:
         raise ValueError(f"type must be one of {JOB_TYPES}")
-    norm = compose.normalize_moments(moments)  # validates
-    if not norm:
+    timeline = [{"t0": float(t["t0"]), "t1": float(t["t1"]), "text": str(t["text"])}
+                for t in (headline_timeline or [])]
+    if type == "social":
+        if not (headline or timeline):
+            raise ValueError("a social job needs a headline or a headline_timeline")
+        if not sizes:
+            raise ValueError("a social job needs at least one size")
+        moments = []
+    norm = compose.normalize_moments(moments or [])  # validates
+    if not norm and type != "social":
         raise ValueError("at least one moment is required")
     if type == "clip" and len(norm) != 1:
         raise ValueError("a clip job takes exactly one moment")
@@ -215,7 +228,8 @@ def submit(project_id: str, type: str, moments: list, sizes=("1x1", "9x16", "16x
     job = {"id": jid, "project_id": project_id, "type": type, "status": "queued",
            "progress": 0.0, "message": "queued", "created": _now(),
            "params": {"moments": moments, "sizes": sizes, "subtitles": subtitles,
-                      "headline": headline, "accent": accent, "bg": bg, "quality": int(quality)},
+                      "headline": headline, "accent": accent, "bg": bg, "quality": int(quality),
+                      "caption_start": float(caption_start), "headline_timeline": timeline},
            "files": [], "error": None}
     _save_job(job)
     _q.put(jid)
@@ -229,7 +243,7 @@ def _run(job: dict) -> None:
     cues = project_cues(proj["id"])
     moments = compose.normalize_moments(p["moments"])
     q = p["quality"]
-    stages = 1 + (1 if p["sizes"] else 0)
+    stages = (0 if job["type"] == "social" else 1) + (1 if p["sizes"] else 0)
 
     def prog(stage):
         def f(frac, msg):
@@ -239,7 +253,12 @@ def _run(job: dict) -> None:
         return f
 
     timeline = None
-    if job["type"] == "clip":
+    if job["type"] == "social":
+        raw, files = src, []
+        headline = p["headline"]
+        caption_start = p.get("caption_start", 0.0)
+        timeline = [(t["t0"], t["t1"], t["text"]) for t in p.get("headline_timeline") or []] or None
+    elif job["type"] == "clip":
         m = moments[0]
         prog(0)(0.0, "cutting clip")
         raw = compose.cut(src, m["start"], m["end"], out / "clip.mp4", q)
@@ -261,7 +280,8 @@ def _run(job: dict) -> None:
     if p["sizes"]:
         if not (headline or timeline):
             raise ValueError("social sizes need a headline (or moment labels)")
-        r = social.render_variants(raw, out, raw.stem, headline or " ", p["sizes"],
+        stem = "social" if job["type"] == "social" else raw.stem
+        r = social.render_variants(raw, out, stem, headline or " ", p["sizes"],
                                    cues=cues if p["subtitles"] else None,
                                    clip_start=caption_start,
                                    headline_timeline=timeline if timeline and any(t[2] for t in timeline) else None,

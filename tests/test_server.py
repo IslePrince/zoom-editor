@@ -53,6 +53,15 @@ def test_rest_end_to_end(media, c):
     assert j["status"] == "done", j.get("error")
     assert {"trailer.mp4", "trailer.vtt", "trailer_timeline.json"} <= {f["name"] for f in j["files"]}
 
+    # social: variants of the whole source, captions from 4 s, cycling headline
+    j = c.post("/api/v1/jobs", json={"project_id": p["id"], "type": "social", "sizes": ["1x1"],
+                                     "headline": "x", "caption_start": 4,
+                                     "headline_timeline": [{"t0": 0, "t1": 10, "text": "First"},
+                                                           {"t0": 10, "t1": 20, "text": "Second"}]}).json()
+    j = _wait(c, j["id"])
+    assert j["status"] == "done", j.get("error")
+    assert [f["name"] for f in j["files"]] == ["social_1x1.mp4"]
+
     bad = c.post("/api/v1/jobs", json={"project_id": p["id"], "type": "clip", "start": 30, "end": 40})
     assert bad.status_code == 400
 

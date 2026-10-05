@@ -14,6 +14,7 @@ Zoom is the motivating case because Zoom cloud recordings come with an `audio_tr
    - `render_clip`: one moment.
    - `render_trailer`: one *whole sentence* from each moment, the one that best matches its `hook`, played in recording order.
    - `render_longform`: every moment in full, with the headline changing for each.
+   - `render_social`: no cut; the social sizes of the whole video, for a clip you already have. `caption_start` says where it sits on the transcript's timeline, and `headline_timeline` can change the headline over time.
 4. `get_job` until the job's `status` is `done`, then download the file URLs.
 
 Times can be given in seconds or as `HH:MM:SS.mmm`, measured on the source video's timeline. Captions never cut a sentence mid-way, and trailer snippets always start and end on sentence boundaries.
@@ -49,8 +50,9 @@ POST   /api/v1/projects                 {video_url|video_path, transcript_url|tr
 POST   /api/v1/projects/upload          multipart: video, transcript?, name?
 GET    /api/v1/projects[/{id}]          DELETE /api/v1/projects/{id}
 GET    /api/v1/projects/{id}/transcript ?start=&end=
-POST   /api/v1/jobs                     {project_id, type: clip|trailer|longform, moments:[{start,end,label,hook?}],
-                                         sizes:["1x1","9x16","16x9"], subtitles, headline, accent, bg, quality}
+POST   /api/v1/jobs                     {project_id, type: clip|trailer|longform|social, moments:[{start,end,label,hook?}],
+                                         sizes:["1x1","9x16","16x9"], subtitles, headline, accent, bg, quality,
+                                         caption_start, headline_timeline:[{t0,t1,text}]}   (last two: social)
                                         (a clip may instead give start/end/headline at the top level)
 GET    /api/v1/jobs[/{id}]              GET /api/v1/jobs/{id}/files/{name}
 ```

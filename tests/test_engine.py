@@ -60,3 +60,22 @@ def test_social_variants(media, tmp_path):
     dims = {k: (probe(v)["w"], probe(v)["h"]) for k, v in r["files"].items()}
     assert dims == {"1x1": (1080, 1080), "9x16": (1080, 1920), "16x9": (1920, 1080)}
     assert r["captions"] >= 1
+
+
+def test_padding_does_not_leak_neighbouring_sentences():
+    # One cue, two sentences; the second starts at 3.0 s (3 of 8 words, 8 s cue).
+    cues = [(0.0, 8.0, "As key driver. So community is the top lever here.")]
+    # A trailer window padded 0.12 s before the second sentence.
+    vtt = transcript.stitched_vtt(cues, [(2.88, 8.0, 0.0)])
+    assert "As key driver" not in vtt and "So community is the top lever here." in vtt
+    # The same for burned-in clip captions.
+    assert [x[2] for x in transcript.slice_cues(cues, 2.88, 8.0)] == [
+        "So community is the top lever here."]
+    # A sentence mostly inside the window is still kept.
+    assert "As key driver" in transcript.stitched_vtt(cues, [(0.5, 8.0, 0.0)])
+
+
+def test_trimmed_caption_keeps_speaker_label():
+    cues = [(0.0, 8.0, "Paul Adams: As key driver. So community is the top lever here.")]
+    vtt = transcript.stitched_vtt(cues, [(3.3, 8.0, 0.0)])
+    assert "Paul Adams: So community is the top lever here." in vtt

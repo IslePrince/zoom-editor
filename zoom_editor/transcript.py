@@ -108,6 +108,10 @@ def slice_cues(cues: list, clip_start: float, clip_end: float,
         if ce <= clip_start or cs >= clip_end:
             continue
         for ss, se, chunk_text in _split_long_cue(cs, ce, text):
+            # A sentence that barely overlaps the window edge would flash its
+            # whole (unheard) text; keep it only if most of it is inside.
+            if min(se, clip_end) - max(ss, clip_start) < 0.5 * (se - ss):
+                continue
             ns = max(0.0, ss - clip_start)
             ne = min(clip_end - clip_start, se - clip_start)
             if ne - ns < min_dur:
@@ -196,8 +200,20 @@ def pick_best_sentence(cues: list, window_start: float, window_end: float,
     return ss, se
 
 
+_SPEAKER = re.compile(r"^([A-Z][\w.'-]*(?: [A-Z][\w.'-]*){0,3}): ")
+
+
 def _slice_text_for_window(text: str, cs: float, ce: float, ws: float, we: float) -> str:
-    """Only the words audible in [ws, we] of the cue [cs, ce]."""
+    """Only the words audible in [ws, we] of the cue [cs, ce], keeping the
+    cue's "Speaker Name: " label when the trimmed text no longer starts with it."""
+    out = _slice_words(text, cs, ce, ws, we)
+    m = _SPEAKER.match(text)
+    if m and out and not out.startswith(m.group(0)):
+        out = m.group(0) + out
+    return out
+
+
+def _slice_words(text: str, cs: float, ce: float, ws: float, we: float) -> str:
     if ws <= cs and we >= ce:
         return text
     cue_dur = ce - cs
@@ -210,7 +226,10 @@ def _slice_text_for_window(text: str, cs: float, ce: float, ws: float, we: float
         out, t = [], cs
         for sent, wc in zip(sentences, sent_words):
             s_end = t + wc * per_word_t
-            if s_end > ws and t < we:
+            # Keep a sentence only if most of it is audible: snippet padding
+            # (a fraction of a second either side) must not pull in the tail
+            # of the previous sentence or the start of the next.
+            if min(s_end, we) - max(t, ws) >= 0.5 * (s_end - t):
                 out.append(sent)
             t = s_end
         if out:

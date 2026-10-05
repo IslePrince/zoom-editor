@@ -28,6 +28,7 @@ def _file_urls(job: dict, base: str = "") -> dict:
 
 def health() -> dict:
     return {"status": "ok", "service": "zoom-editor", "version": __version__,
+            "commit": os.environ.get("ZE_GIT_COMMIT", "unknown"),
             "ffmpeg": ff.version(), **ff.encoder_info(),
             "sizes": list(social.SIZES), "local_paths": bool(store.MEDIA_ROOT)}
 

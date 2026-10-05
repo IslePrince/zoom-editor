@@ -17,7 +17,9 @@ COPY pyproject.toml README.md ./
 COPY zoom_editor ./zoom_editor
 RUN pip install --no-cache-dir .
 
-ENV ZE_DATA_DIR=/data \
+ARG GIT_COMMIT=unknown
+ENV ZE_GIT_COMMIT=$GIT_COMMIT \
+    ZE_DATA_DIR=/data \
     ZE_PORT=8093 \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 EXPOSE 8093

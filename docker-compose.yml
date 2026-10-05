@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      args:
+        GIT_COMMIT: "${GIT_COMMIT:-unknown}"   # set by the desktop auto-deploy
     ports:
       - "8093:8093"
     environment:

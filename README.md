@@ -39,6 +39,7 @@ Connect an MCP client to `http://<host>:8093/mcp` (streamable HTTP).
 | `ZE_API_TOKEN` | (empty) | if set, required as `Authorization: Bearer …` on REST and MCP |
 | `ZE_PUBLIC_URL` | request host | base URL for file links in MCP results |
 | `ZE_WORKERS` | 1 | concurrent jobs (one GPU encodes one job best) |
+| `ZE_PARALLEL_SIZES` | 3 with NVENC, else 1 | social sizes rendered at once within a job (the CPU filter graph is the bottleneck on long videos) |
 | `ZE_RETENTION_DAYS` | 14 | finished jobs are deleted after this; projects stay |
 | `ZE_MAX_DOWNLOAD_GB` | 8 | cap on downloads from `video_url` |
 

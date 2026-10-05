@@ -8,6 +8,7 @@ code is unchanged; only ffmpeg paths and the encoder are pluggable here.
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from .ff import AUDIO_ARGS, FFMPEG, FFPROBE, run, video_args
+from .ff import AUDIO_ARGS, FFMPEG, FFPROBE, encoder, run, video_args
 from .transcript import slice_cues
 
 # ── Target sizes ────────────────────────────────────────────────────────
@@ -596,18 +597,29 @@ def render_variants(src: Path, out_dir: Path, stem: str, headline: str,
         palette = pick_palette(src, duration / 2.0)
     crop = detect_source_crop(src, duration) if cropdetect else None
     caption_cues = slice_cues(cues, clip_start, clip_start + duration) if cues else None
-    files = {}
+    # Sizes render concurrently when the GPU encodes: on long videos the CPU
+    # filter graph (waveform, spectrum, captions) is the bottleneck, and the
+    # three graphs parallelise across cores. Caption PNGs are per-size named.
+    par = int(os.environ.get("ZE_PARALLEL_SIZES") or (3 if encoder() == "h264_nvenc" else 1))
+    files, done = {}, []
     with tempfile.TemporaryDirectory(prefix="ze_cap_") as capdir:
-        for i, size_key in enumerate(sizes):
-            if on_progress:
-                on_progress(i / len(sizes), f"rendering {size_key}")
+        def one(size_key):
             out = out_dir / f"{stem}_{size_key}.mp4"
             render_one(src, out, size_key, palette, headline, font, duration,
                        caption_cues=caption_cues or None,
                        caption_dir=Path(capdir) if caption_cues else None,
                        source_crop=crop, headline_timeline=headline_timeline,
                        crf=quality)
-            files[size_key] = out
+            done.append(size_key)
+            if on_progress:
+                on_progress(len(done) / len(sizes), f"rendered {', '.join(done)}")
+            return size_key, out
+
+        if on_progress:
+            on_progress(0.0, f"rendering {', '.join(sizes)}")
+        with ThreadPoolExecutor(max_workers=max(1, min(par, len(sizes)))) as pool:
+            for size_key, out in pool.map(one, sizes):
+                files[size_key] = out
     return {"files": files, "duration": duration, "crop": crop,
             "palette": {"accent": palette.hex("accent"), "bg": palette.hex("bg")},
             "captions": len(caption_cues or [])}

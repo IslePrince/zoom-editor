@@ -22,7 +22,8 @@ Times can be given in seconds or as `HH:MM:SS.mmm`, measured on the source video
 ## Run it
 
 ```bash
-docker compose up -d --build        # GPU passthrough requested; works without one too
+docker pull ghcr.io/isleprince/zoom-editor   # or build: docker compose up -d --build
+docker compose up -d                          # GPU passthrough requested; works without one too
 curl http://localhost:8093/api/v1/health
 ```
 

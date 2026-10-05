@@ -16,8 +16,8 @@ A meeting recording plus its transcript in; clips, trailers, longform best-ofs a
 - Every encode goes through `ff.video_args()`. Never hardcode `libx264` or `h264_nvenc`.
 - `mcp` is pinned to `<2`: the 2.x server API changed.
 
-## Deployment (Jeevan's setup)
-Runs on the Windows desktop `jeevan-i9-rtx` (RTX 4090), Docker in WSL2, at `http://100.106.28.1:8093` over Tailscale, alongside video-editor (8090), image-editor (8091) and vector-editor (8092). The OpenClaw gateways on the XPS and nokemo1 connect to `/mcp` directly; no stdio adapter is needed.
+## Deployment (our setup)
+Runs on the GPU workstation (RTX 4090, Docker in WSL2) on port 8093, next to video-editor (8090), image-editor (8091) and vector-editor (8092). The agent machines reach it over a private network, and their OpenClaw gateways connect to `/mcp` directly with no stdio adapter. Address and hostname are in the operator's private notes, not here.
 
 ## Tests
 `pytest -q`. They generate a synthetic video and transcript, so no fixtures are needed. They need an ffmpeg with `drawtext`; some static builds lack it. `ZE_FFMPEG`/`ZE_FFPROBE` override the binaries.

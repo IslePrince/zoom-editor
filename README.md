@@ -10,7 +10,7 @@ Zoom is the motivating case because Zoom cloud recordings come with an `audio_tr
 
 1. `create_project`: point it at the video (URL, or a path under the media root) and the transcript.
 2. `get_transcript`: read the cues and decide which moments are worth sharing. The service doesn't pick highlights itself; the calling agent (or person) does, so no LLM key is needed here.
-3. Render one of three ways:
+3. Render:
    - `render_clip`: one moment.
    - `render_trailer`: one *whole sentence* from each moment, the one that best matches its `hook`, played in recording order.
    - `render_longform`: every moment in full, with the headline changing for each.
